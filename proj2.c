@@ -43,6 +43,7 @@ typedef struct shared {
 } shared_mem;
 
 shared_mem* memory_sh;
+
 bool open_file(){
 
     output_file = fopen("proj2.out", "w");
