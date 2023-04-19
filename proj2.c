@@ -176,7 +176,7 @@ int main(int argc, char* argv[]){
 
     long waiting_time = max_uzavreno_pro_nove + (rand() % (max_uzavreno_pro_nove + 1));
     usleep(waiting_time);
-    fprintf(output_file,"NUMBER: Closing.");
+    fprintf(output_file,"%d: Closing.", ++(*counter_action));
 
     for (int i = 0; i < pocet_zakazniku + pocet_uredniku; i++) {
         wait(NULL);
