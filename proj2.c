@@ -36,10 +36,12 @@ long max_cekani_na_postu;
 long max_delka_prestavky;
 long max_uzavreno_pro_nove;
 
-int *counter_action;
-bool* post_open;
+typedef struct shared {
+    int counter_action;
+    bool post_open;
+} shared_mem;
 
-
+shared_mem* memory_sh;
 bool open_file(){
 
     output_file = fopen("proj2.out", "w");
@@ -97,10 +99,9 @@ int argument_parsing(char* argv[]){
 }
 
 void shared_counter_init(){
-    counter_action = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
-    *counter_action = 0;
-    post_open = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
-    *post_open = true;
+    memory_sh = mmap(NULL, sizeof(shared_mem), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+    memory_sh->counter_action = 0;
+    memory_sh->post_open = true;
 }
 void semaphore_init(){
     mutex = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
@@ -109,20 +110,20 @@ void semaphore_init(){
 }
 
 void shared_clean(){
-    munmap(counter_action, sizeof(int));
     munmap(mutex, sizeof(sem_t));
+    munmap(memory_sh, sizeof(sem_t));
     sem_destroy(mutex);
 }
 
 void proces_zakaznik(int idZ){
     sem_wait(mutex);
-    fprintf(output_file,"%d: Zakaznik %d started.\n", ++(*counter_action), idZ);
+    fprintf(output_file,"%d: Zakaznik %d started.\n", ++(memory_sh->counter_action), idZ);
     sem_post(mutex); 
 }
 
 void proces_urednik(int idU){
     sem_wait(mutex);
-    fprintf(output_file,"%d: Urednik %d started.\n", ++(*counter_action), idU);
+    fprintf(output_file,"%d: Urednik %d started.\n", ++(memory_sh->counter_action), idU);
     sem_post(mutex); 
 }
 
@@ -177,7 +178,7 @@ int main(int argc, char* argv[]){
 
     long waiting_time = max_uzavreno_pro_nove + (rand() % (max_uzavreno_pro_nove + 1));
     usleep(waiting_time);
-    fprintf(output_file,"%d: Closing.", ++(*counter_action));
+    fprintf(output_file,"%d: Closing.", ++(memory_sh->counter_action));
 
     for (int i = 0; i < pocet_zakazniku + pocet_uredniku; i++) {
         wait(NULL);
@@ -185,6 +186,7 @@ int main(int argc, char* argv[]){
 
     shared_clean();
     fclose(output_file);
+    
     printf("All child processes have exited.\n");
 
     exit (0);
