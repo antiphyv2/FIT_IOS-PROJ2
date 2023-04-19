@@ -13,6 +13,7 @@
 #include <sys/mman.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/sem.h>
 #include <sys/ipc.h>
@@ -24,7 +25,7 @@
 FILE *output_file;
 
 
-sem_t *mutex;
+sem_t *output_sem;
 sem_t *urednik;
 sem_t *zakaznik;
 sem_t *urednik_done;
@@ -77,7 +78,6 @@ int argument_parsing(char* argv[]){
     if(*end_ptr != 0){
         return -1;
     }
-    //printf("%ld, %ld, %ld, %ld, %ld", NZ, NU, TZ, TF, F);
 
     if(pocet_zakazniku < 1 || pocet_uredniku < 1){
         return -1;
@@ -104,27 +104,45 @@ void shared_counter_init(){
     memory_sh->post_open = true;
 }
 void semaphore_init(){
-    mutex = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
-    sem_init(mutex, 1, 1);
+    output_sem = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+    sem_init(output_sem, 1, 1);
     
 }
 
 void shared_clean(){
-    munmap(mutex, sizeof(sem_t));
+    munmap(output_sem, sizeof(sem_t));
     munmap(memory_sh, sizeof(sem_t));
-    sem_destroy(mutex);
+    sem_destroy(output_sem);
 }
 
 void proces_zakaznik(int idZ){
-    sem_wait(mutex);
-    fprintf(output_file,"%d: Zakaznik %d started.\n", ++(memory_sh->counter_action), idZ);
-    sem_post(mutex); 
+    sem_wait(output_sem);
+    fprintf(output_file,"%d: Z %d started.\n", ++(memory_sh->counter_action), idZ);
+    sem_post(output_sem); 
+
+    if(memory_sh->post_open == false){
+        sem_wait(output_sem);
+        fprintf(output_file,"%d: Z %d going home.\n", ++(memory_sh->counter_action), idZ);
+        sem_post(output_sem); 
+        exit(0);
+    }
+
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    unsigned int seed = tv.tv_usec;
+
+    srand(seed);
+    int Cislo_prepazky = rand() % 3 + 1;
+    sem_wait(output_sem);
+    fprintf(output_file,"%d: Z %d entering office for a service %d.\n", ++(memory_sh->counter_action), idZ, Cislo_prepazky);
+    sem_post(output_sem); 
+
 }
 
 void proces_urednik(int idU){
-    sem_wait(mutex);
-    fprintf(output_file,"%d: Urednik %d started.\n", ++(memory_sh->counter_action), idU);
-    sem_post(mutex); 
+    sem_wait(output_sem);
+    fprintf(output_file,"%d: U %d started.\n", ++(memory_sh->counter_action), idU);
+    sem_post(output_sem); 
 }
 
 int main(int argc, char* argv[]){
@@ -175,10 +193,11 @@ int main(int argc, char* argv[]){
             exit (1);
         }
     }
-
+   
     long waiting_time = max_uzavreno_pro_nove + (rand() % (max_uzavreno_pro_nove + 1));
     usleep(waiting_time);
-    fprintf(output_file,"%d: Closing.", ++(memory_sh->counter_action));
+    fprintf(output_file,"%d: Closing.\n", ++(memory_sh->counter_action));
+    memory_sh->post_open = false;
 
     for (int i = 0; i < pocet_zakazniku + pocet_uredniku; i++) {
         wait(NULL);
