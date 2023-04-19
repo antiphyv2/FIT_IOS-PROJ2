@@ -183,6 +183,7 @@ int main(int argc, char* argv[]){
     }
 
     shared_clean();
+    fclose(output_file);
     printf("All child processes have exited.\n");
 
     exit (0);
