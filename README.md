@@ -1,7 +1,7 @@
-# IOS-Projekt2
-IOS – projekt 2 (synchronizace)
-Zadání je inspirováno knihou Allen B. Downey: The Little Book of Semaphores (The barbershop
-problem)
+# IOS-Projekt2 (synchronizace)
+
+Zadání je inspirováno knihou Allen B. Downey: The Little Book of Semaphores (The barbershop problem)
+
 Popis Úlohy (Pošta)
 V systému máme 3 typy procesů: (0) hlavní proces, (1) poštovní úředník a (2) zákazník. Každý
 zákazník jde na poštu vyřídit jeden ze tří typů požadavků: listovní služby, balíky, peněžní služby.
