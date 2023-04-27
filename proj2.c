@@ -27,7 +27,9 @@ FILE *output_file;
 
 sem_t *output_sem;
 sem_t *urednik;
-sem_t *zakaznik;
+sem_t *fronta_dopisy;
+sem_t *fronta_baliky;
+sem_t *fronta_peneznisluzby;
 sem_t *urednik_done;
 sem_t *zakaznik_done;
 
@@ -40,6 +42,9 @@ long max_uzavreno_pro_nove;
 typedef struct shared {
     int counter_action;
     bool post_open;
+    int pocet_lidi_dopisy;
+    int pocet_lidi_baliky;
+    int pocet_lidi_peneznisluzby;
 } shared_mem;
 
 shared_mem* memory_sh;
@@ -99,21 +104,37 @@ int argument_parsing(char* argv[]){
     return 0;
 }
 
-void shared_counter_init(){
+void shared_mem_init(){
     memory_sh = mmap(NULL, sizeof(shared_mem), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     memory_sh->counter_action = 0;
     memory_sh->post_open = true;
+    memory_sh->pocet_lidi_dopisy = 0;
+    memory_sh->pocet_lidi_baliky = 0;
+    memory_sh->pocet_lidi_peneznisluzby = 0;
 }
+
 void semaphore_init(){
     output_sem = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     sem_init(output_sem, 1, 1);
-    
+    fronta_baliky = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+    sem_init(output_sem, 1, 1);
+    fronta_dopisy = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+    sem_init(output_sem, 1, 1);
+    fronta_baliky = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+    sem_init(output_sem, 1, 1);
 }
 
 void shared_clean(){
     munmap(output_sem, sizeof(sem_t));
-    munmap(memory_sh, sizeof(sem_t));
+    munmap(fronta_baliky, sizeof(sem_t));
+    munmap(fronta_dopisy, sizeof(sem_t));
+    munmap(fronta_peneznisluzby, sizeof(sem_t));
+    munmap(memory_sh, sizeof(shared_mem));
     sem_destroy(output_sem);
+    sem_destroy(fronta_baliky);
+    sem_destroy(fronta_dopisy);
+    sem_destroy(fronta_peneznisluzby);
+    
 }
 
 void proces_zakaznik(int idZ){
@@ -121,8 +142,9 @@ void proces_zakaznik(int idZ){
     fprintf(output_file,"%d: Z %d started.\n", ++(memory_sh->counter_action), idZ);
     sem_post(output_sem); 
 
-    //int cekani_na_vstup = rand() % (max_cekani_na_postu + 1);
-    //usleep(cekani_na_vstup);
+    srand(time(NULL)+ idZ);
+    int customer_waiting_time = rand() % max_cekani_na_postu + 1;
+    usleep(customer_waiting_time * 1000);
 
     if(memory_sh->post_open == false){
         sem_wait(output_sem);
@@ -141,7 +163,39 @@ void proces_zakaznik(int idZ){
     fprintf(output_file,"%d: Z %d entering office for a service %d.\n", ++(memory_sh->counter_action), idZ, Cislo_prepazky);
     sem_post(output_sem); 
 
+    switch (Cislo_prepazky)
+    {
+    case 1:
+        ++(memory_sh->pocet_lidi_dopisy);
+        //sem_wait(fronta_dopisy);
+        break;
+    case 2:
+        ++(memory_sh->pocet_lidi_baliky);
+        //sem_wait(fronta_baliky);
+        break;
+    case 3:
+        ++(memory_sh->pocet_lidi_peneznisluzby);
+        //sem_wait(fronta_peneznisluzby);
+        break;
+    default:
+        break;
+    }
+
+    sem_wait(output_sem);
+    fprintf(output_file,"%d: Z %d called by office worker.\n", ++(memory_sh->counter_action), idZ);
+    sem_post(output_sem); 
+
+    srand(time(NULL) + idZ);
+    int wait_for_sync = rand() % 10 + 1;
+    usleep(wait_for_sync * 1000);
+
+    sem_wait(output_sem);
+    fprintf(output_file,"%d: Z %d going home.\n", ++(memory_sh->counter_action), idZ);
+    sem_post(output_sem); 
 }
+
+    
+
 
 void proces_urednik(int idU){
     sem_wait(output_sem);
@@ -169,7 +223,7 @@ int main(int argc, char* argv[]){
 
     srand(time(0));
 
-    shared_counter_init();
+    shared_mem_init();
     semaphore_init();
 
     for (int i = 0; i < pocet_zakazniku; i++) {
@@ -199,13 +253,12 @@ int main(int argc, char* argv[]){
     }
    
     long waiting_time = max_uzavreno_pro_nove + (rand() % (max_uzavreno_pro_nove + 1));
-    usleep(waiting_time);
+    usleep(waiting_time*1000);
+
     fprintf(output_file,"%d: Closing.\n", ++(memory_sh->counter_action));
     memory_sh->post_open = false;
 
-    for (int i = 0; i < pocet_zakazniku + pocet_uredniku; i++) {
-        wait(NULL);
-    }
+    while(wait(NULL) > 0);
 
     shared_clean();
     fclose(output_file);
