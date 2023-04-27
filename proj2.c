@@ -121,6 +121,9 @@ void proces_zakaznik(int idZ){
     fprintf(output_file,"%d: Z %d started.\n", ++(memory_sh->counter_action), idZ);
     sem_post(output_sem); 
 
+    //int cekani_na_vstup = rand() % (max_cekani_na_postu + 1);
+    //usleep(cekani_na_vstup);
+
     if(memory_sh->post_open == false){
         sem_wait(output_sem);
         fprintf(output_file,"%d: Z %d going home.\n", ++(memory_sh->counter_action), idZ);
