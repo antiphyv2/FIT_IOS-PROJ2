@@ -197,12 +197,54 @@ void proces_zakaznik(int idZ){
 }
 
     
+int vyberfrontu (){
+    srand(time(NULL));
 
+    int nonempty_counters = 0;
+    if (memory_sh->pocet_lidi_dopisy > 0) {
+        nonempty_counters++;
+    }
+    if (memory_sh->pocet_lidi_baliky > 0) {
+        nonempty_counters++;
+    }
+    if (memory_sh->pocet_lidi_peneznisluzby > 0) {
+        nonempty_counters++;
+    }
+
+    int random_num = rand() % nonempty_counters + 1;
+
+    int rada_k_obsluze;
+    
+    if (memory_sh->pocet_lidi_dopisy > 0) {
+        random_num--;
+        if (random_num == 0) {
+            rada_k_obsluze = 1;
+        }
+    }
+    if (memory_sh->pocet_lidi_baliky > 0) {
+        random_num--;
+        if (random_num == 0) {
+            rada_k_obsluze = 2;
+        }
+    }
+    if (memory_sh->pocet_lidi_peneznisluzby > 0) {
+        random_num--;
+        if (random_num == 0) {
+            rada_k_obsluze = 3;
+        }
+    }
+
+    return rada_k_obsluze;
+}
 
 void proces_urednik(int idU){
     sem_wait(output_sem);
     fprintf(output_file,"%d: U %d started.\n", ++(memory_sh->counter_action), idU);
     sem_post(output_sem); 
+
+    int obsluhovana_rada = vyberfrontu();
+
+
 }
 
 int main(int argc, char* argv[]){
