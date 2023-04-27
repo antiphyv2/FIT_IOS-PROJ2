@@ -85,10 +85,12 @@ int argument_parsing(char* argv[]){
         return -1;
     }
 
-    if(pocet_zakazniku < 1 || pocet_uredniku < 1){
+    if(pocet_zakazniku < 0){
         return -1;
     }
-
+    if(pocet_uredniku < 1){
+        return -1;
+    }
     if(max_cekani_na_postu < 0 || max_cekani_na_postu > 10000){
         return -1;
     }
@@ -180,7 +182,7 @@ void proces_zakaznik(int idZ){
     default:
         break;
     }
-
+    
     sem_wait(output_sem);
     fprintf(output_file,"%d: Z %d called by office worker.\n", ++(memory_sh->counter_action), idZ);
     sem_post(output_sem); 
@@ -252,7 +254,7 @@ int main(int argc, char* argv[]){
         }
     }
    
-    long waiting_time = max_uzavreno_pro_nove + (rand() % (max_uzavreno_pro_nove + 1));
+    long waiting_time = (rand() % (max_uzavreno_pro_nove/2 + 1)) + (max_uzavreno_pro_nove/2);
     usleep(waiting_time*1000);
 
     fprintf(output_file,"%d: Closing.\n", ++(memory_sh->counter_action));
