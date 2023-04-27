@@ -182,7 +182,7 @@ void proces_zakaznik(int idZ){
     default:
         break;
     }
-    
+
     sem_wait(output_sem);
     fprintf(output_file,"%d: Z %d called by office worker.\n", ++(memory_sh->counter_action), idZ);
     sem_post(output_sem); 
@@ -257,8 +257,10 @@ int main(int argc, char* argv[]){
     long waiting_time = (rand() % (max_uzavreno_pro_nove/2 + 1)) + (max_uzavreno_pro_nove/2);
     usleep(waiting_time*1000);
 
+    sem_wait(output_sem);
     fprintf(output_file,"%d: Closing.\n", ++(memory_sh->counter_action));
     memory_sh->post_open = false;
+    sem_post(output_sem); 
 
     while(wait(NULL) > 0);
 
