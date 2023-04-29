@@ -30,8 +30,6 @@ sem_t *urednik;
 sem_t *fronta_dopisy;
 sem_t *fronta_baliky;
 sem_t *fronta_peneznisluzby;
-sem_t *urednik_done;
-sem_t *zakaznik_done;
 
 long pocet_zakazniku;
 long pocet_uredniku;
@@ -118,12 +116,14 @@ void shared_mem_init(){
 void semaphore_init(){
     output_sem = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     sem_init(output_sem, 1, 1);
-    fronta_baliky = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
-    sem_init(output_sem, 1, 1);
     fronta_dopisy = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
-    sem_init(output_sem, 1, 1);
+    sem_init(fronta_dopisy, 1, 1);
     fronta_baliky = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
-    sem_init(output_sem, 1, 1);
+    sem_init(fronta_baliky, 1, 1);
+    fronta_peneznisluzby = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+    sem_init(fronta_peneznisluzby, 1, 1);
+    urednik = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+    sem_init(urednik, 1, 1);
 }
 
 void shared_clean(){
@@ -131,6 +131,7 @@ void shared_clean(){
     munmap(fronta_baliky, sizeof(sem_t));
     munmap(fronta_dopisy, sizeof(sem_t));
     munmap(fronta_peneznisluzby, sizeof(sem_t));
+    munmap(urednik, sizeof(sem_t));
     munmap(memory_sh, sizeof(shared_mem));
     sem_destroy(output_sem);
     sem_destroy(fronta_baliky);
@@ -155,11 +156,11 @@ void proces_zakaznik(int idZ){
         exit(0);
     }
 
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    unsigned int seed = tv.tv_usec;
+    //struct timeval tv;
+    //gettimeofday(&tv, NULL);
+    //unsigned int seed = tv.tv_usec;
 
-    srand(seed);
+    srand(time(NULL) * getpid());
     int Cislo_prepazky = rand() % 3 + 1;
     sem_wait(output_sem);
     fprintf(output_file,"%d: Z %d entering office for a service %d.\n", ++(memory_sh->counter_action), idZ, Cislo_prepazky);
@@ -198,8 +199,7 @@ void proces_zakaznik(int idZ){
 
     
 int vyberfrontu (){
-    srand(time(NULL));
-
+    
     int nonempty_counters = 0;
     if (memory_sh->pocet_lidi_dopisy > 0) {
         nonempty_counters++;
@@ -210,26 +210,26 @@ int vyberfrontu (){
     if (memory_sh->pocet_lidi_peneznisluzby > 0) {
         nonempty_counters++;
     }
-
-    int random_num = rand() % nonempty_counters + 1;
-
-    int rada_k_obsluze;
+    
+    int nahodne_cislo = rand() % (nonempty_counters + 1);
+    
+    int rada_k_obsluze = 0;
     
     if (memory_sh->pocet_lidi_dopisy > 0) {
-        random_num--;
-        if (random_num == 0) {
+        nahodne_cislo--;
+        if (nahodne_cislo == 0) {
             rada_k_obsluze = 1;
         }
     }
     if (memory_sh->pocet_lidi_baliky > 0) {
-        random_num--;
-        if (random_num == 0) {
+        nahodne_cislo--;
+        if (nahodne_cislo == 0) {
             rada_k_obsluze = 2;
         }
     }
     if (memory_sh->pocet_lidi_peneznisluzby > 0) {
-        random_num--;
-        if (random_num == 0) {
+        nahodne_cislo--;
+        if (nahodne_cislo == 0) {
             rada_k_obsluze = 3;
         }
     }
@@ -242,8 +242,9 @@ void proces_urednik(int idU){
     fprintf(output_file,"%d: U %d started.\n", ++(memory_sh->counter_action), idU);
     sem_post(output_sem); 
 
+    
     int obsluhovana_rada = vyberfrontu();
-
+    
 
 }
 
@@ -273,7 +274,6 @@ int main(int argc, char* argv[]){
     for (int i = 0; i < pocet_zakazniku; i++) {
         pid_t pid = fork(); 
         if (pid == 0) {
-            //printf("Child process %d with PID %d\n", i + 1, getpid());
             proces_zakaznik(i+1);
             exit(0);
         } else if (pid < 0) {
@@ -287,7 +287,6 @@ int main(int argc, char* argv[]){
         pid_t pid = fork(); 
         if (pid == 0) {
             proces_urednik(i+1);
-            //printf("Child process %d with PID %d\n", i + 1, getpid());
             exit(0);
         } else if (pid < 0) {
             fprintf(stderr, "Cannot create a child process.");
