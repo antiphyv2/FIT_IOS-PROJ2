@@ -134,6 +134,7 @@ void shared_clean(){
     munmap(urednik, sizeof(sem_t));
     munmap(memory_sh, sizeof(shared_mem));
     sem_destroy(output_sem);
+    sem_destroy(urednik);
     sem_destroy(fronta_baliky);
     sem_destroy(fronta_dopisy);
     sem_destroy(fronta_peneznisluzby);
@@ -270,7 +271,7 @@ void proces_urednik(int idU){
             continue; 
         }
 
-        if (obsluhovana_rada == 0 && memory_sh->post_open == true){
+        if (memory_sh->pocet_lidi_baliky == 0 && memory_sh->pocet_lidi_dopisy == 0 && memory_sh->pocet_lidi_peneznisluzby == 0 && memory_sh->post_open == true){
             sem_wait(output_sem);
             fprintf(output_file,"%d: U %d taking break.\n", ++(memory_sh->counter_action), idU);
             sem_post(output_sem); 
@@ -283,7 +284,8 @@ void proces_urednik(int idU){
             fprintf(output_file,"%d: U %d break finished.\n", ++(memory_sh->counter_action), idU);
             sem_post(output_sem); 
             continue;
-        } else if (memory_sh->post_open == false && obsluhovana_rada == 0){
+        }
+        if(memory_sh->post_open == false && memory_sh->pocet_lidi_baliky == 0 && memory_sh->pocet_lidi_dopisy == 0 && memory_sh->pocet_lidi_peneznisluzby == 0){
             sem_wait(output_sem);
             fprintf(output_file,"%d: U %d going home.\n", ++(memory_sh->counter_action), idU);
             sem_post(output_sem);
@@ -311,8 +313,6 @@ int main(int argc, char* argv[]){
         return 1;
     }
 
-    srand(time(0));
-
     shared_mem_init();
     semaphore_init();
 
@@ -339,7 +339,7 @@ int main(int argc, char* argv[]){
             exit (1);
         }
     }
-   
+    srand(time(NULL) * getpid());
     long waiting_time = (rand() % (max_uzavreno_pro_nove/2 + 1)) + (max_uzavreno_pro_nove/2);
     usleep(waiting_time*1000);
 
