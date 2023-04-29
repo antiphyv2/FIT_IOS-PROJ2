@@ -156,10 +156,6 @@ void proces_zakaznik(int idZ){
         exit(0);
     }
 
-    //struct timeval tv;
-    //gettimeofday(&tv, NULL);
-    //unsigned int seed = tv.tv_usec;
-
     srand(time(NULL) * getpid());
     int Cislo_prepazky = rand() % 3 + 1;
     sem_wait(output_sem);
@@ -170,15 +166,15 @@ void proces_zakaznik(int idZ){
     {
     case 1:
         ++(memory_sh->pocet_lidi_dopisy);
-        //sem_wait(fronta_dopisy);
+        sem_wait(fronta_dopisy);
         break;
     case 2:
         ++(memory_sh->pocet_lidi_baliky);
-        //sem_wait(fronta_baliky);
+        sem_wait(fronta_baliky);
         break;
     case 3:
         ++(memory_sh->pocet_lidi_peneznisluzby);
-        //sem_wait(fronta_peneznisluzby);
+        sem_wait(fronta_peneznisluzby);
         break;
     default:
         break;
@@ -195,6 +191,7 @@ void proces_zakaznik(int idZ){
     sem_wait(output_sem);
     fprintf(output_file,"%d: Z %d going home.\n", ++(memory_sh->counter_action), idZ);
     sem_post(output_sem); 
+    exit(0);
 }
 
     
@@ -242,10 +239,58 @@ void proces_urednik(int idU){
     fprintf(output_file,"%d: U %d started.\n", ++(memory_sh->counter_action), idU);
     sem_post(output_sem); 
 
-    
-    int obsluhovana_rada = vyberfrontu();
-    
+    while(true){
+        sem_wait(urednik);
+        int obsluhovana_rada = vyberfrontu();
+        sem_post(urednik);
 
+        if(obsluhovana_rada > 0){
+            sem_wait(output_sem);
+            fprintf(output_file,"%d: U %d serving a service of type %d.\n", ++(memory_sh->counter_action), idU, obsluhovana_rada);
+            sem_post(output_sem); 
+
+            if(obsluhovana_rada == 1){
+                memory_sh->pocet_lidi_dopisy-= 1;
+                sem_post(fronta_dopisy);
+            } else if (obsluhovana_rada == 2){
+                memory_sh->pocet_lidi_baliky-= 1;
+                sem_post(fronta_baliky);
+            } else if (obsluhovana_rada == 3){
+                memory_sh->pocet_lidi_peneznisluzby-= 1;
+                sem_post(fronta_peneznisluzby);
+            }
+
+            srand(time(NULL) * getpid());
+            int service_wait = rand() % 10 + 1;
+            usleep(service_wait * 1000);
+
+            sem_wait(output_sem);
+            fprintf(output_file,"%d: U %d service finished.\n", ++(memory_sh->counter_action), idU);
+            sem_post(output_sem);
+            continue; 
+        }
+
+        if (obsluhovana_rada == 0 && memory_sh->post_open == true){
+            sem_wait(output_sem);
+            fprintf(output_file,"%d: U %d taking break.\n", ++(memory_sh->counter_action), idU);
+            sem_post(output_sem); 
+
+            srand(time(NULL)+ idU);
+            int sleeping_time = rand() % max_delka_prestavky + 1;
+            usleep(sleeping_time * 1000);
+
+            sem_wait(output_sem);
+            fprintf(output_file,"%d: U %d break finished.\n", ++(memory_sh->counter_action), idU);
+            sem_post(output_sem); 
+            continue;
+        } else if (memory_sh->post_open == false && obsluhovana_rada == 0){
+            sem_wait(output_sem);
+            fprintf(output_file,"%d: U %d going home.\n", ++(memory_sh->counter_action), idU);
+            sem_post(output_sem);
+            exit(0);
+        }
+        
+    }
 }
 
 int main(int argc, char* argv[]){
