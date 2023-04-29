@@ -143,7 +143,7 @@ void shared_clean(){
 
 void proces_zakaznik(int idZ){
     sem_wait(output_sem);
-    fprintf(output_file,"%d: Z %d started.\n", ++(memory_sh->counter_action), idZ);
+    fprintf(output_file,"%d: Z %d: started\n", ++(memory_sh->counter_action), idZ);
     sem_post(output_sem); 
 
     srand(time(NULL)+ idZ);
@@ -152,7 +152,7 @@ void proces_zakaznik(int idZ){
 
     if(memory_sh->post_open == false){
         sem_wait(output_sem);
-        fprintf(output_file,"%d: Z %d going home.\n", ++(memory_sh->counter_action), idZ);
+        fprintf(output_file,"%d: Z %d: going home\n", ++(memory_sh->counter_action), idZ);
         sem_post(output_sem); 
         exit(0);
     }
@@ -160,7 +160,7 @@ void proces_zakaznik(int idZ){
     srand(time(NULL) * getpid());
     int Cislo_prepazky = rand() % 3 + 1;
     sem_wait(output_sem);
-    fprintf(output_file,"%d: Z %d entering office for a service %d.\n", ++(memory_sh->counter_action), idZ, Cislo_prepazky);
+    fprintf(output_file,"%d: Z %d: entering office for a service %d\n", ++(memory_sh->counter_action), idZ, Cislo_prepazky);
     sem_post(output_sem); 
 
     switch (Cislo_prepazky)
@@ -182,7 +182,7 @@ void proces_zakaznik(int idZ){
     }
 
     sem_wait(output_sem);
-    fprintf(output_file,"%d: Z %d called by office worker.\n", ++(memory_sh->counter_action), idZ);
+    fprintf(output_file,"%d: Z %d: called by office worker\n", ++(memory_sh->counter_action), idZ);
     sem_post(output_sem); 
 
     srand(time(NULL) + idZ);
@@ -190,7 +190,7 @@ void proces_zakaznik(int idZ){
     usleep(wait_for_sync * 1000);
 
     sem_wait(output_sem);
-    fprintf(output_file,"%d: Z %d going home.\n", ++(memory_sh->counter_action), idZ);
+    fprintf(output_file,"%d: Z %d: going home\n", ++(memory_sh->counter_action), idZ);
     sem_post(output_sem); 
     exit(0);
 }
@@ -237,7 +237,7 @@ int vyberfrontu (){
 
 void proces_urednik(int idU){
     sem_wait(output_sem);
-    fprintf(output_file,"%d: U %d started.\n", ++(memory_sh->counter_action), idU);
+    fprintf(output_file,"%d: U %d: started\n", ++(memory_sh->counter_action), idU);
     sem_post(output_sem); 
 
     while(true){
@@ -247,7 +247,7 @@ void proces_urednik(int idU){
 
         if(obsluhovana_rada > 0){
             sem_wait(output_sem);
-            fprintf(output_file,"%d: U %d serving a service of type %d.\n", ++(memory_sh->counter_action), idU, obsluhovana_rada);
+            fprintf(output_file,"%d: U %d: serving a service of type %d\n", ++(memory_sh->counter_action), idU, obsluhovana_rada);
             sem_post(output_sem); 
 
             if(obsluhovana_rada == 1){
@@ -266,14 +266,14 @@ void proces_urednik(int idU){
             usleep(service_wait * 1000);
 
             sem_wait(output_sem);
-            fprintf(output_file,"%d: U %d service finished.\n", ++(memory_sh->counter_action), idU);
+            fprintf(output_file,"%d: U %d: service finished\n", ++(memory_sh->counter_action), idU);
             sem_post(output_sem);
             continue; 
         }
 
         if (memory_sh->pocet_lidi_baliky == 0 && memory_sh->pocet_lidi_dopisy == 0 && memory_sh->pocet_lidi_peneznisluzby == 0 && memory_sh->post_open == true){
             sem_wait(output_sem);
-            fprintf(output_file,"%d: U %d taking break.\n", ++(memory_sh->counter_action), idU);
+            fprintf(output_file,"%d: U %d: taking break\n", ++(memory_sh->counter_action), idU);
             sem_post(output_sem); 
 
             srand(time(NULL)+ idU);
@@ -281,13 +281,13 @@ void proces_urednik(int idU){
             usleep(sleeping_time * 1000);
 
             sem_wait(output_sem);
-            fprintf(output_file,"%d: U %d break finished.\n", ++(memory_sh->counter_action), idU);
+            fprintf(output_file,"%d: U %d: break finished\n", ++(memory_sh->counter_action), idU);
             sem_post(output_sem); 
             continue;
         }
         if(memory_sh->post_open == false && memory_sh->pocet_lidi_baliky == 0 && memory_sh->pocet_lidi_dopisy == 0 && memory_sh->pocet_lidi_peneznisluzby == 0){
             sem_wait(output_sem);
-            fprintf(output_file,"%d: U %d going home.\n", ++(memory_sh->counter_action), idU);
+            fprintf(output_file,"%d: U %d: going home\n", ++(memory_sh->counter_action), idU);
             sem_post(output_sem);
             exit(0);
         }
@@ -344,7 +344,7 @@ int main(int argc, char* argv[]){
     usleep(waiting_time*1000);
 
     sem_wait(output_sem);
-    fprintf(output_file,"%d: Closing.\n", ++(memory_sh->counter_action));
+    fprintf(output_file,"%d: closing\n", ++(memory_sh->counter_action));
     memory_sh->post_open = false;
     sem_post(output_sem); 
 
@@ -352,8 +352,6 @@ int main(int argc, char* argv[]){
 
     shared_clean();
     fclose(output_file);
-    
-    printf("All child processes have exited.\n");
 
     exit (0);
 }
