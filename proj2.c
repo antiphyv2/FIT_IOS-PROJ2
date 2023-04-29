@@ -276,7 +276,7 @@ void proces_urednik(int idU){
             fprintf(output_file,"%d: U %d: taking break\n", ++(memory_sh->counter_action), idU);
             sem_post(output_sem); 
 
-            srand(time(NULL)+ idU);
+            srand(time(NULL)+ getpid());
             int sleeping_time = rand() % max_delka_prestavky + 1;
             usleep(sleeping_time * 1000);
 
