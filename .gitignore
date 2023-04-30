@@ -10,3 +10,4 @@ proj2.zip
 tester.sh
 OUTPUT/12-break_after_close
 OUTPUT/6-missing_customer_entering
+OUTPUT/7-break_after_close
