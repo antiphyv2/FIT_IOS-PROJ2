@@ -260,7 +260,7 @@ void proces_urednik(int idU){
             sem_wait(output_sem);
             fprintf(output_file,"%d: U %d: serving a service of type %d\n", ++(memory_sh->counter_action), idU, obsluhovana_rada);
             sem_post(output_sem); 
-            sem_wait(mutex);
+
             if(obsluhovana_rada == 1){
                 memory_sh->pocet_lidi_dopisy-= 1;
                 sem_post(fronta_dopisy);
@@ -271,15 +271,15 @@ void proces_urednik(int idU){
                 memory_sh->pocet_lidi_peneznisluzby-= 1;
                 sem_post(fronta_peneznisluzby);
             }
-            sem_post(mutex);
-            srand(time(NULL) * getpid());
-            int service_wait = rand() % 10 + 1;
-            usleep(service_wait * 1000);
 
-            sem_wait(output_sem);
-            fprintf(output_file,"%d: U %d: service finished\n", ++(memory_sh->counter_action), idU);
-            sem_post(output_sem);
-            continue; 
+        srand(time(NULL) * getpid());
+        int service_wait = rand() % 10 + 1;
+        usleep(service_wait * 1000);
+
+        sem_wait(output_sem);
+        fprintf(output_file,"%d: U %d: service finished\n", ++(memory_sh->counter_action), idU);
+        sem_post(output_sem);
+        continue; 
         }
 
         if (memory_sh->pocet_lidi_baliky == 0 && memory_sh->pocet_lidi_dopisy == 0 && memory_sh->pocet_lidi_peneznisluzby == 0 && memory_sh->post_open == true){
