@@ -21,7 +21,7 @@
 #include <time.h>
 #include <unistd.h>
 
-
+//Deklarace sdilenych promennych a semaforu
 FILE *output_file;
 
 
@@ -38,7 +38,7 @@ long max_delka_prestavky;
 long max_uzavreno_pro_nove;
 
 typedef struct shared {
-    int counter_action;
+    int citac_akci;
     bool post_open;
     int pocet_lidi_dopisy;
     int pocet_lidi_baliky;
@@ -47,6 +47,7 @@ typedef struct shared {
 
 shared_mem* memory_sh;
 
+//Funkce pro otevreni souboru a nastaveni bufferu
 bool open_file(){
 
     output_file = fopen("proj2.out", "w");
@@ -59,6 +60,7 @@ bool open_file(){
     return true;
 }
 
+//Funkce pro zpracovani vstupnich argumentu
 int argument_parsing(char* argv[]){
 
     char *end_ptr;
@@ -103,29 +105,61 @@ int argument_parsing(char* argv[]){
 
     return 0;
 }
-
+//Funkce pro vytvareni sdilenne pameti
 void shared_mem_init(){
     memory_sh = mmap(NULL, sizeof(shared_mem), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
-    memory_sh->counter_action = 0;
+    memory_sh->citac_akci = 0;
     memory_sh->post_open = true;
     memory_sh->pocet_lidi_dopisy = 0;
     memory_sh->pocet_lidi_baliky = 0;
     memory_sh->pocet_lidi_peneznisluzby = 0;
 }
 
+//Funkce pro inicializaci semaforu
 void semaphore_init(){
     output_sem = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+    if(output_sem == MAP_FAILED){
+        fclose(output_file);
+        exit(1);
+    }
     sem_init(output_sem, 1, 1);
     fronta_dopisy = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+    if(fronta_dopisy == MAP_FAILED){
+        munmap(output_sem, sizeof(sem_t));
+        fclose(output_file);
+        exit(1);
+    }
     sem_init(fronta_dopisy, 1, 0);
     fronta_baliky = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+    if(fronta_baliky == MAP_FAILED){
+        munmap(output_sem, sizeof(sem_t));
+        munmap(fronta_dopisy, sizeof(sem_t));
+        fclose(output_file);
+        exit(1);
+    }
     sem_init(fronta_baliky, 1, 0);
     fronta_peneznisluzby = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+    if(fronta_peneznisluzby == MAP_FAILED){
+        munmap(output_sem, sizeof(sem_t));
+        munmap(fronta_dopisy, sizeof(sem_t));
+        munmap(fronta_baliky, sizeof(sem_t));
+        fclose(output_file);
+        exit(1);
+    }
     sem_init(fronta_peneznisluzby, 1, 0);
     mutex = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+    if(mutex == MAP_FAILED){
+        munmap(output_sem, sizeof(sem_t));
+        munmap(fronta_dopisy, sizeof(sem_t));
+        munmap(fronta_baliky, sizeof(sem_t));
+        munmap(fronta_peneznisluzby, sizeof(sem_t));
+        fclose(output_file);
+        exit(1);
+    }
     sem_init(mutex, 1, 1);
 }
 
+//Funkce pro uklizeni pameti
 void shared_clean(){
     sem_destroy(output_sem);
     sem_destroy(mutex);
@@ -143,7 +177,7 @@ void shared_clean(){
 
 void proces_zakaznik(int idZ){
     sem_wait(output_sem);
-    fprintf(output_file,"%d: Z %d: started\n", ++(memory_sh->counter_action), idZ);
+    fprintf(output_file,"%d: Z %d: started\n", ++(memory_sh->citac_akci), idZ);
     sem_post(output_sem); 
 
     srand(time(NULL)+ idZ);
@@ -154,7 +188,7 @@ void proces_zakaznik(int idZ){
     if(memory_sh->post_open == false){
         sem_post(mutex);
         sem_wait(output_sem);
-        fprintf(output_file,"%d: Z %d: going home\n", ++(memory_sh->counter_action), idZ);
+        fprintf(output_file,"%d: Z %d: going home\n", ++(memory_sh->citac_akci), idZ);
         sem_post(output_sem); 
         exit(0);
     }
@@ -167,7 +201,7 @@ void proces_zakaznik(int idZ){
     case 1:
         ++(memory_sh->pocet_lidi_dopisy);
         sem_wait(output_sem);
-        fprintf(output_file,"%d: Z %d: entering office for a service %d\n", ++(memory_sh->counter_action), idZ, Cislo_prepazky);
+        fprintf(output_file,"%d: Z %d: entering office for a service %d\n", ++(memory_sh->citac_akci), idZ, Cislo_prepazky);
         sem_post(output_sem); 
         sem_post(mutex);
         sem_wait(fronta_dopisy);
@@ -175,7 +209,7 @@ void proces_zakaznik(int idZ){
     case 2:
         ++(memory_sh->pocet_lidi_baliky);
         sem_wait(output_sem);
-        fprintf(output_file,"%d: Z %d: entering office for a service %d\n", ++(memory_sh->counter_action), idZ, Cislo_prepazky);
+        fprintf(output_file,"%d: Z %d: entering office for a service %d\n", ++(memory_sh->citac_akci), idZ, Cislo_prepazky);
         sem_post(output_sem); 
         sem_post(mutex);
         sem_wait(fronta_baliky);
@@ -183,7 +217,7 @@ void proces_zakaznik(int idZ){
     case 3:
         ++(memory_sh->pocet_lidi_peneznisluzby);
         sem_wait(output_sem);
-        fprintf(output_file,"%d: Z %d: entering office for a service %d\n", ++(memory_sh->counter_action), idZ, Cislo_prepazky);
+        fprintf(output_file,"%d: Z %d: entering office for a service %d\n", ++(memory_sh->citac_akci), idZ, Cislo_prepazky);
         sem_post(output_sem); 
         sem_post(mutex);
         sem_wait(fronta_peneznisluzby);
@@ -193,7 +227,7 @@ void proces_zakaznik(int idZ){
     }
 
     sem_wait(output_sem);
-    fprintf(output_file,"%d: Z %d: called by office worker\n", ++(memory_sh->counter_action), idZ);
+    fprintf(output_file,"%d: Z %d: called by office worker\n", ++(memory_sh->citac_akci), idZ);
     sem_post(output_sem); 
 
     srand(time(NULL) + idZ);
@@ -201,12 +235,12 @@ void proces_zakaznik(int idZ){
     usleep(wait_for_sync * 1000);
 
     sem_wait(output_sem);
-    fprintf(output_file,"%d: Z %d: going home\n", ++(memory_sh->counter_action), idZ);
+    fprintf(output_file,"%d: Z %d: going home\n", ++(memory_sh->citac_akci), idZ);
     sem_post(output_sem); 
     exit(0);
 }
 
-    
+//Funkce pro nahodny vyber neprazdne fronty
 int vyberfrontu (){
     
     int pocet_nepraznych_front = 0;
@@ -248,7 +282,7 @@ int vyberfrontu (){
 
 void proces_urednik(int idU){
     sem_wait(output_sem);
-    fprintf(output_file,"%d: U %d: started\n", ++(memory_sh->counter_action), idU);
+    fprintf(output_file,"%d: U %d: started\n", ++(memory_sh->citac_akci), idU);
     sem_post(output_sem); 
 
     while(true){
@@ -258,9 +292,9 @@ void proces_urednik(int idU){
 
         if(obsluhovana_rada > 0){
             sem_wait(output_sem);
-            fprintf(output_file,"%d: U %d: serving a service of type %d\n", ++(memory_sh->counter_action), idU, obsluhovana_rada);
+            fprintf(output_file,"%d: U %d: serving a service of type %d\n", ++(memory_sh->citac_akci), idU, obsluhovana_rada);
             sem_post(output_sem); 
-            sem_wait(mutex);
+
             if(obsluhovana_rada == 1){
                 memory_sh->pocet_lidi_dopisy-= 1;
                 sem_post(fronta_dopisy);
@@ -271,34 +305,34 @@ void proces_urednik(int idU){
                 memory_sh->pocet_lidi_peneznisluzby-= 1;
                 sem_post(fronta_peneznisluzby);
             }
-            sem_post(mutex);
+
             srand(time(NULL) * getpid());
-            int service_wait = rand() % 10 + 1;
-            usleep(service_wait * 1000);
+            int cekani_po_sluzbe = rand() % 10 + 1;
+            usleep(cekani_po_sluzbe * 1000);
 
             sem_wait(output_sem);
-            fprintf(output_file,"%d: U %d: service finished\n", ++(memory_sh->counter_action), idU);
+            fprintf(output_file,"%d: U %d: service finished\n", ++(memory_sh->citac_akci), idU);
             sem_post(output_sem);
             continue; 
         }
 
         if (memory_sh->pocet_lidi_baliky == 0 && memory_sh->pocet_lidi_dopisy == 0 && memory_sh->pocet_lidi_peneznisluzby == 0 && memory_sh->post_open == true){
             sem_wait(output_sem);
-            fprintf(output_file,"%d: U %d: taking break\n", ++(memory_sh->counter_action), idU);
+            fprintf(output_file,"%d: U %d: taking break\n", ++(memory_sh->citac_akci), idU);
             sem_post(output_sem); 
 
             srand(time(NULL) * getpid() * idU);
-            int sleeping_time = rand() % max_delka_prestavky + 1;
-            usleep(sleeping_time * 1000);
+            int cas_pauza = rand() % max_delka_prestavky + 1;
+            usleep(cas_pauza * 1000);
 
             sem_wait(output_sem);
-            fprintf(output_file,"%d: U %d: break finished\n", ++(memory_sh->counter_action), idU);
+            fprintf(output_file,"%d: U %d: break finished\n", ++(memory_sh->citac_akci), idU);
             sem_post(output_sem); 
             continue;
         }
         if(memory_sh->post_open == false && memory_sh->pocet_lidi_baliky == 0 && memory_sh->pocet_lidi_dopisy == 0 && memory_sh->pocet_lidi_peneznisluzby == 0){
             sem_wait(output_sem);
-            fprintf(output_file,"%d: U %d: going home\n", ++(memory_sh->counter_action), idU);
+            fprintf(output_file,"%d: U %d: going home\n", ++(memory_sh->citac_akci), idU);
             sem_post(output_sem);
             exit(0);
         }
@@ -351,11 +385,11 @@ int main(int argc, char* argv[]){
         }
     }
     srand(time(NULL) * getpid());
-    long waiting_time = (rand() % (max_uzavreno_pro_nove/2 + 1)) + (max_uzavreno_pro_nove/2);
-    usleep(waiting_time*1000);
+    long cas_do_uzavreni = (rand() % (max_uzavreno_pro_nove/2 + 1)) + (max_uzavreno_pro_nove/2);
+    usleep(cas_do_uzavreni*1000);
 
     sem_wait(mutex);
-    fprintf(output_file,"%d: closing\n", ++(memory_sh->counter_action));
+    fprintf(output_file,"%d: closing\n", ++(memory_sh->citac_akci));
     memory_sh->post_open = false;
     sem_post(mutex); 
 
