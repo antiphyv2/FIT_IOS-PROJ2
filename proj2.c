@@ -172,7 +172,6 @@ void shared_clean(){
     munmap(fronta_peneznisluzby, sizeof(sem_t));
     munmap(mutex, sizeof(sem_t));
     munmap(memory_sh, sizeof(shared_mem));
-    
 }
 
 void proces_zakaznik(int idZ){
@@ -181,9 +180,9 @@ void proces_zakaznik(int idZ){
     sem_post(output_sem); 
 
     srand(time(NULL)+ idZ);
-    int customer_waiting_time = rand() % max_cekani_na_postu + 1;
-    usleep(customer_waiting_time * 1000);
-
+    int cas_cekani_na_postu = rand() % (max_cekani_na_postu + 1);
+    usleep(cas_cekani_na_postu * 1000);
+    
     sem_wait(mutex);
     if(memory_sh->post_open == false){
         sem_post(mutex);
@@ -195,7 +194,6 @@ void proces_zakaznik(int idZ){
 
     srand(time(NULL) * getpid());
     int Cislo_prepazky = rand() % 3 + 1;
-
     switch (Cislo_prepazky)
     {
     case 1:

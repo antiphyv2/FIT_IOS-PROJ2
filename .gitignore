@@ -11,3 +11,8 @@ tester.sh
 OUTPUT/12-break_after_close
 OUTPUT/6-missing_customer_entering
 OUTPUT/7-break_after_close
+backup/bb.c
+OUTPUT/4-break_after_close
+README.md
+README.md
+README.md
