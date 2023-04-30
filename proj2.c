@@ -117,27 +117,27 @@ void semaphore_init(){
     output_sem = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     sem_init(output_sem, 1, 1);
     fronta_dopisy = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
-    sem_init(fronta_dopisy, 1, 1);
+    sem_init(fronta_dopisy, 1, 0);
     fronta_baliky = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
-    sem_init(fronta_baliky, 1, 1);
+    sem_init(fronta_baliky, 1, 0);
     fronta_peneznisluzby = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
-    sem_init(fronta_peneznisluzby, 1, 1);
+    sem_init(fronta_peneznisluzby, 1, 0);
     urednik = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     sem_init(urednik, 1, 1);
 }
 
 void shared_clean(){
+    sem_destroy(output_sem);
+    sem_destroy(urednik);
+    sem_destroy(fronta_baliky);
+    sem_destroy(fronta_dopisy);
+    sem_destroy(fronta_peneznisluzby);
     munmap(output_sem, sizeof(sem_t));
     munmap(fronta_baliky, sizeof(sem_t));
     munmap(fronta_dopisy, sizeof(sem_t));
     munmap(fronta_peneznisluzby, sizeof(sem_t));
     munmap(urednik, sizeof(sem_t));
     munmap(memory_sh, sizeof(shared_mem));
-    sem_destroy(output_sem);
-    sem_destroy(urednik);
-    sem_destroy(fronta_baliky);
-    sem_destroy(fronta_dopisy);
-    sem_destroy(fronta_peneznisluzby);
     
 }
 
@@ -208,7 +208,7 @@ int vyberfrontu (){
     if (memory_sh->pocet_lidi_peneznisluzby > 0) {
         nonempty_counters++;
     }
-    
+    srand(time(NULL) * getpid());
     int nahodne_cislo = rand() % (nonempty_counters + 1);
     
     int rada_k_obsluze = 0;
@@ -261,14 +261,14 @@ void proces_urednik(int idU){
                 sem_post(fronta_peneznisluzby);
             }
 
-            srand(time(NULL) * getpid());
-            int service_wait = rand() % 10 + 1;
-            usleep(service_wait * 1000);
+        srand(time(NULL) * getpid());
+        int service_wait = rand() % 10 + 1;
+        usleep(service_wait * 1000);
 
-            sem_wait(output_sem);
-            fprintf(output_file,"%d: U %d: service finished\n", ++(memory_sh->counter_action), idU);
-            sem_post(output_sem);
-            continue; 
+        sem_wait(output_sem);
+        fprintf(output_file,"%d: U %d: service finished\n", ++(memory_sh->counter_action), idU);
+        sem_post(output_sem);
+        continue; 
         }
 
         if (memory_sh->pocet_lidi_baliky == 0 && memory_sh->pocet_lidi_dopisy == 0 && memory_sh->pocet_lidi_peneznisluzby == 0 && memory_sh->post_open == true){
@@ -276,7 +276,7 @@ void proces_urednik(int idU){
             fprintf(output_file,"%d: U %d: taking break\n", ++(memory_sh->counter_action), idU);
             sem_post(output_sem); 
 
-            srand(time(NULL)+ getpid());
+            srand(time(NULL) * getpid() * idU);
             int sleeping_time = rand() % max_delka_prestavky + 1;
             usleep(sleeping_time * 1000);
 
@@ -352,6 +352,5 @@ int main(int argc, char* argv[]){
 
     shared_clean();
     fclose(output_file);
-
     exit (0);
 }
