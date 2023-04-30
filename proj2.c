@@ -369,6 +369,7 @@ int main(int argc, char* argv[]){
             exit(0);
         } else if (pid < 0) {
             fprintf(stderr, "Cannot create a child process.");
+            shared_clean();
             fclose(output_file);
             exit (1);
         }
@@ -381,6 +382,7 @@ int main(int argc, char* argv[]){
             exit(0);
         } else if (pid < 0) {
             fprintf(stderr, "Cannot create a child process.");
+            shared_clean();
             fclose(output_file);
             exit (1);
         }
