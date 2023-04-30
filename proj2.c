@@ -262,18 +262,21 @@ int vyberfrontu (){
         nahodne_cislo--;
         if (nahodne_cislo == 0) {
             rada_k_obsluze = 1;
+            memory_sh->pocet_lidi_dopisy-= 1;
         }
     }
     if (memory_sh->pocet_lidi_baliky > 0) {
         nahodne_cislo--;
         if (nahodne_cislo == 0) {
             rada_k_obsluze = 2;
+            memory_sh->pocet_lidi_baliky-= 1;
         }
     }
     if (memory_sh->pocet_lidi_peneznisluzby > 0) {
         nahodne_cislo--;
         if (nahodne_cislo == 0) {
             rada_k_obsluze = 3;
+            memory_sh->pocet_lidi_peneznisluzby-= 1;
         }
     }
 
@@ -296,13 +299,10 @@ void proces_urednik(int idU){
             sem_post(output_sem); 
 
             if(obsluhovana_rada == 1){
-                memory_sh->pocet_lidi_dopisy-= 1;
                 sem_post(fronta_dopisy);
             } else if (obsluhovana_rada == 2){
-                memory_sh->pocet_lidi_baliky-= 1;
                 sem_post(fronta_baliky);
             } else if (obsluhovana_rada == 3){
-                memory_sh->pocet_lidi_peneznisluzby-= 1;
                 sem_post(fronta_peneznisluzby);
             }
 
