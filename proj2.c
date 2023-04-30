@@ -122,14 +122,23 @@ void semaphore_init(){
         fclose(output_file);
         exit(1);
     }
-    sem_init(output_sem, 1, 1);
+    if(sem_init(output_sem, 1, 1) == -1){
+        munmap(output_sem, sizeof(sem_t));
+        fclose(output_file);
+        exit(1);
+    }
     fronta_dopisy = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if(fronta_dopisy == MAP_FAILED){
         munmap(output_sem, sizeof(sem_t));
         fclose(output_file);
         exit(1);
     }
-    sem_init(fronta_dopisy, 1, 0);
+    if(sem_init(fronta_dopisy, 1, 0) == -1){
+        munmap(output_sem, sizeof(sem_t));
+        munmap(fronta_dopisy, sizeof(sem_t));
+        fclose(output_file);
+        exit(1);
+    }
     fronta_baliky = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if(fronta_baliky == MAP_FAILED){
         munmap(output_sem, sizeof(sem_t));
@@ -137,7 +146,13 @@ void semaphore_init(){
         fclose(output_file);
         exit(1);
     }
-    sem_init(fronta_baliky, 1, 0);
+    if(sem_init(fronta_baliky, 1, 0) == -1){
+        munmap(output_sem, sizeof(sem_t));
+        munmap(fronta_dopisy, sizeof(sem_t));
+        munmap(fronta_baliky, sizeof(sem_t));
+        fclose(output_file);
+        exit(1);
+    }
     fronta_peneznisluzby = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if(fronta_peneznisluzby == MAP_FAILED){
         munmap(output_sem, sizeof(sem_t));
@@ -146,7 +161,14 @@ void semaphore_init(){
         fclose(output_file);
         exit(1);
     }
-    sem_init(fronta_peneznisluzby, 1, 0);
+    if(sem_init(fronta_peneznisluzby, 1, 0) == -1){
+        munmap(output_sem, sizeof(sem_t));
+        munmap(fronta_dopisy, sizeof(sem_t));
+        munmap(fronta_baliky, sizeof(sem_t));
+        munmap(fronta_peneznisluzby, sizeof(sem_t));
+        fclose(output_file);
+        exit(1);
+    }
     mutex = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if(mutex == MAP_FAILED){
         munmap(output_sem, sizeof(sem_t));
@@ -156,7 +178,15 @@ void semaphore_init(){
         fclose(output_file);
         exit(1);
     }
-    sem_init(mutex, 1, 1);
+    if(sem_init(mutex, 1, 1) == -1){
+        munmap(output_sem, sizeof(sem_t));
+        munmap(fronta_dopisy, sizeof(sem_t));
+        munmap(fronta_baliky, sizeof(sem_t));
+        munmap(fronta_peneznisluzby, sizeof(sem_t));
+        munmap(mutex, sizeof(sem_t));
+        fclose(output_file);
+        exit(1);
+    }
 }
 
 //Funkce pro uklizeni pameti
@@ -173,16 +203,16 @@ void shared_clean(){
     munmap(mutex, sizeof(sem_t));
     munmap(memory_sh, sizeof(shared_mem));
 }
-
+//Proces zakaznika
 void proces_zakaznik(int idZ){
     sem_wait(output_sem);
     fprintf(output_file,"%d: Z %d: started\n", ++(memory_sh->citac_akci), idZ);
     sem_post(output_sem); 
 
     srand(time(NULL)+ idZ);
-    int cas_cekani_na_postu = rand() % (max_cekani_na_postu + 1);
-    usleep(cas_cekani_na_postu * 1000);
-    
+    int customer_waiting_time = rand() % (max_cekani_na_postu + 1);
+    usleep(customer_waiting_time * 1000);
+    //Kontrola otevrenosti posty
     sem_wait(mutex);
     if(memory_sh->post_open == false){
         sem_post(mutex);
@@ -191,15 +221,15 @@ void proces_zakaznik(int idZ){
         sem_post(output_sem); 
         exit(0);
     }
-
+    //Nahodny vyber fronty
     srand(time(NULL) * getpid());
-    int Cislo_prepazky = rand() % 3 + 1;
-    switch (Cislo_prepazky)
+    int Cislo_fronty = rand() % 3 + 1;
+    switch (Cislo_fronty)
     {
     case 1:
         ++(memory_sh->pocet_lidi_dopisy);
         sem_wait(output_sem);
-        fprintf(output_file,"%d: Z %d: entering office for a service %d\n", ++(memory_sh->citac_akci), idZ, Cislo_prepazky);
+        fprintf(output_file,"%d: Z %d: entering office for a service %d\n", ++(memory_sh->citac_akci), idZ, Cislo_fronty);
         sem_post(output_sem); 
         sem_post(mutex);
         sem_wait(fronta_dopisy);
@@ -207,7 +237,7 @@ void proces_zakaznik(int idZ){
     case 2:
         ++(memory_sh->pocet_lidi_baliky);
         sem_wait(output_sem);
-        fprintf(output_file,"%d: Z %d: entering office for a service %d\n", ++(memory_sh->citac_akci), idZ, Cislo_prepazky);
+        fprintf(output_file,"%d: Z %d: entering office for a service %d\n", ++(memory_sh->citac_akci), idZ, Cislo_fronty);
         sem_post(output_sem); 
         sem_post(mutex);
         sem_wait(fronta_baliky);
@@ -215,7 +245,7 @@ void proces_zakaznik(int idZ){
     case 3:
         ++(memory_sh->pocet_lidi_peneznisluzby);
         sem_wait(output_sem);
-        fprintf(output_file,"%d: Z %d: entering office for a service %d\n", ++(memory_sh->citac_akci), idZ, Cislo_prepazky);
+        fprintf(output_file,"%d: Z %d: entering office for a service %d\n", ++(memory_sh->citac_akci), idZ, Cislo_fronty);
         sem_post(output_sem); 
         sem_post(mutex);
         sem_wait(fronta_peneznisluzby);
@@ -280,13 +310,14 @@ int vyberfrontu (){
 
     return rada_k_obsluze;
 }
-
+//Proces urednika
 void proces_urednik(int idU){
     sem_wait(output_sem);
     fprintf(output_file,"%d: U %d: started\n", ++(memory_sh->citac_akci), idU);
     sem_post(output_sem); 
 
     while(true){
+        //Semafor pro vyber neprazne fronty, kvuli pristupu ke sdilenym promennym
         sem_wait(mutex);
         int obsluhovana_rada = vyberfrontu();
         sem_post(mutex);
@@ -313,7 +344,7 @@ void proces_urednik(int idU){
             sem_post(output_sem);
             continue; 
         }
-
+        //Pokud jsou fronty prazdne a fronta oteverna, urednik si bere prestavku
         if (memory_sh->pocet_lidi_baliky == 0 && memory_sh->pocet_lidi_dopisy == 0 && memory_sh->pocet_lidi_peneznisluzby == 0 && memory_sh->post_open == true){
             sem_wait(output_sem);
             fprintf(output_file,"%d: U %d: taking break\n", ++(memory_sh->citac_akci), idU);
@@ -328,23 +359,22 @@ void proces_urednik(int idU){
             sem_post(output_sem); 
             continue;
         }
-        
+        //Pokud je posta zavrena a nikdo neceka, jde domu
         if(memory_sh->post_open == false && memory_sh->pocet_lidi_baliky == 0 && memory_sh->pocet_lidi_dopisy == 0 && memory_sh->pocet_lidi_peneznisluzby == 0){
             sem_wait(output_sem);
             fprintf(output_file,"%d: U %d: going home\n", ++(memory_sh->citac_akci), idU);
             sem_post(output_sem);
             exit(0);
         }
-        
     }
 }
 
 int main(int argc, char* argv[]){
-    
+    //Otevreni souboru
     if (!open_file()){
         return 1;
     }
-
+    //Kontrola argumentu
     if(argc != 6){
         fprintf(stderr, "Bad amount of arguments.");
         fclose(output_file);
@@ -356,10 +386,10 @@ int main(int argc, char* argv[]){
         fclose(output_file);
         return 1;
     }
-
+    //Vytvareni semaforu a sdilene pameti
     shared_mem_init();
     semaphore_init();
-
+    //Tvorba procesu v podobe uredniku a zakazniku
     for (int i = 0; i < pocet_zakazniku; i++) {
         pid_t pid = fork(); 
         if (pid == 0) {
@@ -385,6 +415,7 @@ int main(int argc, char* argv[]){
             exit (1);
         }
     }
+    //Cekani do uzavreni posty
     srand(time(NULL) * getpid());
     long cas_do_uzavreni = (rand() % (max_uzavreno_pro_nove/2 + 1)) + (max_uzavreno_pro_nove/2);
     usleep(cas_do_uzavreni*1000);
@@ -395,9 +426,9 @@ int main(int argc, char* argv[]){
     sem_wait(mutex);
     memory_sh->post_open = false;
     sem_post(mutex);
-
+    //Cekani dokud neskonci vsichni potomci
     while(wait(NULL) > 0);
-
+    //Cisteni pameti a zavreni souboru
     shared_clean();
     fclose(output_file);
     exit (0);
