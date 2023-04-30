@@ -26,7 +26,7 @@ FILE *output_file;
 
 
 sem_t *output_sem;
-sem_t *mutex;
+sem_t *urednik;
 sem_t *fronta_dopisy;
 sem_t *fronta_baliky;
 sem_t *fronta_peneznisluzby;
@@ -122,13 +122,13 @@ void semaphore_init(){
     sem_init(fronta_baliky, 1, 0);
     fronta_peneznisluzby = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     sem_init(fronta_peneznisluzby, 1, 0);
-    mutex = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
-    sem_init(mutex, 1, 1);
+    urednik = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+    sem_init(urednik, 1, 1);
 }
 
 void shared_clean(){
     sem_destroy(output_sem);
-    sem_destroy(mutex);
+    sem_destroy(urednik);
     sem_destroy(fronta_baliky);
     sem_destroy(fronta_dopisy);
     sem_destroy(fronta_peneznisluzby);
@@ -136,7 +136,7 @@ void shared_clean(){
     munmap(fronta_baliky, sizeof(sem_t));
     munmap(fronta_dopisy, sizeof(sem_t));
     munmap(fronta_peneznisluzby, sizeof(sem_t));
-    munmap(mutex, sizeof(sem_t));
+    munmap(urednik, sizeof(sem_t));
     munmap(memory_sh, sizeof(shared_mem));
     
 }
@@ -150,9 +150,7 @@ void proces_zakaznik(int idZ){
     int customer_waiting_time = rand() % max_cekani_na_postu + 1;
     usleep(customer_waiting_time * 1000);
 
-    sem_wait(mutex);
     if(memory_sh->post_open == false){
-        sem_post(mutex);
         sem_wait(output_sem);
         fprintf(output_file,"%d: Z %d: going home\n", ++(memory_sh->counter_action), idZ);
         sem_post(output_sem); 
@@ -161,31 +159,22 @@ void proces_zakaznik(int idZ){
 
     srand(time(NULL) * getpid());
     int Cislo_prepazky = rand() % 3 + 1;
+    sem_wait(output_sem);
+    fprintf(output_file,"%d: Z %d: entering office for a service %d\n", ++(memory_sh->counter_action), idZ, Cislo_prepazky);
+    sem_post(output_sem); 
 
     switch (Cislo_prepazky)
     {
     case 1:
         ++(memory_sh->pocet_lidi_dopisy);
-        sem_wait(output_sem);
-        fprintf(output_file,"%d: Z %d: entering office for a service %d\n", ++(memory_sh->counter_action), idZ, Cislo_prepazky);
-        sem_post(output_sem); 
-        sem_post(mutex);
         sem_wait(fronta_dopisy);
         break;
     case 2:
         ++(memory_sh->pocet_lidi_baliky);
-        sem_wait(output_sem);
-        fprintf(output_file,"%d: Z %d: entering office for a service %d\n", ++(memory_sh->counter_action), idZ, Cislo_prepazky);
-        sem_post(output_sem); 
-        sem_post(mutex);
         sem_wait(fronta_baliky);
         break;
     case 3:
         ++(memory_sh->pocet_lidi_peneznisluzby);
-        sem_wait(output_sem);
-        fprintf(output_file,"%d: Z %d: entering office for a service %d\n", ++(memory_sh->counter_action), idZ, Cislo_prepazky);
-        sem_post(output_sem); 
-        sem_post(mutex);
         sem_wait(fronta_peneznisluzby);
         break;
     default:
@@ -252,9 +241,9 @@ void proces_urednik(int idU){
     sem_post(output_sem); 
 
     while(true){
-        sem_wait(mutex);
+        sem_wait(urednik);
         int obsluhovana_rada = vyberfrontu();
-        sem_post(mutex);
+        sem_post(urednik);
 
         if(obsluhovana_rada > 0){
             sem_wait(output_sem);
@@ -354,10 +343,10 @@ int main(int argc, char* argv[]){
     long waiting_time = (rand() % (max_uzavreno_pro_nove/2 + 1)) + (max_uzavreno_pro_nove/2);
     usleep(waiting_time*1000);
 
-    sem_wait(mutex);
+    sem_wait(output_sem);
     fprintf(output_file,"%d: closing\n", ++(memory_sh->counter_action));
     memory_sh->post_open = false;
-    sem_post(mutex); 
+    sem_post(output_sem); 
 
     while(wait(NULL) > 0);
 
