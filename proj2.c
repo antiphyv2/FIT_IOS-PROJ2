@@ -322,7 +322,7 @@ void proces_urednik(int idU){
             sem_post(output_sem); 
 
             srand(time(NULL) * getpid() * idU);
-            int cas_pauza = rand() % max_delka_prestavky + 1;
+            int cas_pauza = rand() % (max_delka_prestavky + 1);
             usleep(cas_pauza * 1000);
 
             sem_wait(output_sem);
@@ -330,6 +330,7 @@ void proces_urednik(int idU){
             sem_post(output_sem); 
             continue;
         }
+        
         if(memory_sh->post_open == false && memory_sh->pocet_lidi_baliky == 0 && memory_sh->pocet_lidi_dopisy == 0 && memory_sh->pocet_lidi_peneznisluzby == 0){
             sem_wait(output_sem);
             fprintf(output_file,"%d: U %d: going home\n", ++(memory_sh->citac_akci), idU);
@@ -388,10 +389,12 @@ int main(int argc, char* argv[]){
     long cas_do_uzavreni = (rand() % (max_uzavreno_pro_nove/2 + 1)) + (max_uzavreno_pro_nove/2);
     usleep(cas_do_uzavreni*1000);
 
-    sem_wait(mutex);
+    sem_wait(output_sem);
     fprintf(output_file,"%d: closing\n", ++(memory_sh->citac_akci));
+    sem_post(output_sem); 
+    sem_wait(mutex);
     memory_sh->post_open = false;
-    sem_post(mutex); 
+    sem_post(mutex);
 
     while(wait(NULL) > 0);
 
