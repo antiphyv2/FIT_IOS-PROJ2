@@ -108,6 +108,11 @@ int argument_parsing(char* argv[]){
 //Funkce pro vytvareni sdilenne pameti
 void shared_mem_init(){
     memory_sh = mmap(NULL, sizeof(shared_mem), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+    if(memory_sh == MAP_FAILED){
+        fprintf(stderr, "Chyba pri vytvareni sdilene pameti.");
+        fclose(output_file);
+        exit(1);
+    }
     memory_sh->citac_akci = 0;
     memory_sh->post_open = true;
     memory_sh->pocet_lidi_dopisy = 0;
@@ -119,21 +124,25 @@ void shared_mem_init(){
 void semaphore_init(){
     output_sem = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if(output_sem == MAP_FAILED){
+        fprintf(stderr, "Chyba pri vytvareni sdilene pameti.");
         fclose(output_file);
         exit(1);
     }
     if(sem_init(output_sem, 1, 1) == -1){
+        fprintf(stderr, "Chyba pri vytvareni semaforu.");
         munmap(output_sem, sizeof(sem_t));
         fclose(output_file);
         exit(1);
     }
     fronta_dopisy = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if(fronta_dopisy == MAP_FAILED){
+        fprintf(stderr, "Chyba pri vytvareni sdilene pameti.");
         munmap(output_sem, sizeof(sem_t));
         fclose(output_file);
         exit(1);
     }
     if(sem_init(fronta_dopisy, 1, 0) == -1){
+        fprintf(stderr, "Chyba pri vytvareni semaforu.");
         munmap(output_sem, sizeof(sem_t));
         munmap(fronta_dopisy, sizeof(sem_t));
         fclose(output_file);
@@ -141,12 +150,14 @@ void semaphore_init(){
     }
     fronta_baliky = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if(fronta_baliky == MAP_FAILED){
+        fprintf(stderr, "Chyba pri vytvareni sdilene pameti.");
         munmap(output_sem, sizeof(sem_t));
         munmap(fronta_dopisy, sizeof(sem_t));
         fclose(output_file);
         exit(1);
     }
     if(sem_init(fronta_baliky, 1, 0) == -1){
+        fprintf(stderr, "Chyba pri vytvareni semaforu.");
         munmap(output_sem, sizeof(sem_t));
         munmap(fronta_dopisy, sizeof(sem_t));
         munmap(fronta_baliky, sizeof(sem_t));
@@ -155,6 +166,7 @@ void semaphore_init(){
     }
     fronta_peneznisluzby = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if(fronta_peneznisluzby == MAP_FAILED){
+        fprintf(stderr, "Chyba pri vytvareni sdilene pameti.");
         munmap(output_sem, sizeof(sem_t));
         munmap(fronta_dopisy, sizeof(sem_t));
         munmap(fronta_baliky, sizeof(sem_t));
@@ -162,6 +174,7 @@ void semaphore_init(){
         exit(1);
     }
     if(sem_init(fronta_peneznisluzby, 1, 0) == -1){
+        fprintf(stderr, "Chyba pri vytvareni semaforu.");
         munmap(output_sem, sizeof(sem_t));
         munmap(fronta_dopisy, sizeof(sem_t));
         munmap(fronta_baliky, sizeof(sem_t));
@@ -171,6 +184,7 @@ void semaphore_init(){
     }
     mutex = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if(mutex == MAP_FAILED){
+        fprintf(stderr, "Chyba pri sdilene pameti.");
         munmap(output_sem, sizeof(sem_t));
         munmap(fronta_dopisy, sizeof(sem_t));
         munmap(fronta_baliky, sizeof(sem_t));
@@ -179,6 +193,7 @@ void semaphore_init(){
         exit(1);
     }
     if(sem_init(mutex, 1, 1) == -1){
+        fprintf(stderr, "Chyba pri vytvareni semaforu.");
         munmap(output_sem, sizeof(sem_t));
         munmap(fronta_dopisy, sizeof(sem_t));
         munmap(fronta_baliky, sizeof(sem_t));
